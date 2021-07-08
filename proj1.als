@@ -5,7 +5,7 @@
 --
 -- Miniproject 1
 --
--- Name:  <replace with your name>
+-- Name:  Fabyo Silveira Amorim
 --
 --===============================================
 
@@ -17,7 +17,9 @@ open util/ordering[Time] as T
 sig Time {}
 
 abstract sig ObjectStatus {}
-one sig InUse, Purged extends ObjectStatus {}
+one sig InUse, Purged extends ObjectStatus {
+	objects: Object set -> Time
+}
 
 abstract sig Object {
   status: ObjectStatus lone -> Time
@@ -96,16 +98,19 @@ pred deleteMailbox [mb: Mailbox, t,t': Time] {
 ----------------------------
 
 pred init [t: Time] {
+
   -- There are no purged objects at all
-
+	no Purged.objects.t
   -- All mailboxes are empty
-
+	no Mailbox.messages.t
   -- The predefined mailboxes are mutually distinct
-
+	no inbox & (drafts + trash + sent) and 
+	no drafts & (trash + sent) and
+	no trash & sent
   -- The predefined mailboxes are the only active objects
-
+--	Object & InUse.objects.t = (inbox + drafts + trash + sent)
   -- The app has no user-created mailboxes
-
+	no MailApp.userboxes.t
 }
 
 
