@@ -1,2 +1,7 @@
-# formalmethods-miniproject1
-Manage MailApp with Alloy language
+# Formal Methods - Mini Project 1
+### Manage MailApp with Alloy language
+
+Members
+----------------
+- Fabyo Silveira
+- Diego Camargos
