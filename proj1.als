@@ -5,8 +5,9 @@
 --
 -- Miniproject 1
 --
--- Name:  Fabyo Silveira Amorim
---
+-- Names: Diego Della Rocca de Camargos
+--        Fabyo Silveira Amorim
+-- 
 --===============================================
 
 --------------
@@ -61,34 +62,84 @@ fun start [] : Time { T/first } -- first instant
 -------------
 
 pred createMessage [m: Message, t,t': Time] {
+-- Pre-condition
+	-- Since this is a fresh message, in terms of the Alloy model, the message
+	-- cannot be drawn from the set of messages that are currently active or purged.
+	no (m.status.t & ObjectStatus)
+	no (m & Mailbox.messages.t)
+-- Post-condition
+	-- Create a new message and put it in the drafts mailbox.
+	some (m.status.t' & InUse)
+	some (m & mDrafts.messages.t')
+-- Frame condition
 
 }
 
 pred getMessage [m: Message, t,t': Time] {
+-- Pre-condition
+
+-- Post-condition
+
+-- Frame condition
 
 }
 
 pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
+--Move a given message from its current mailbox to a given, different mailbox.
+-- Pre-condition
+	some (m.status.t & InUse)
+	some(m & Mailbox.messages.t)
+	no (m & mb'.messages.t)
+-- Post-condition
+	some (m.status.t' & InUse)
+	some (m & mb'.messages.t')
+	no (m & m.(~(messages.t)).messages.t')
+-- Frame condition
 
 }
 
 pred deleteMessage [m: Message, t,t': Time] {
+-- Pre-condition
+
+-- Post-condition
+
+-- Frame condition
 
 }
 
 pred sendMessage [m: Message, t,t': Time] {
+-- Pre-condition
+
+-- Post-condition
+
+-- Frame condition
 
 }
 
 pred emptyTrash [t,t': Time] {
+-- Pre-condition
+
+-- Post-condition
+
+-- Frame condition
 
 }
 
 pred createMailbox [mb: Mailbox, t,t': Time] {
+-- Pre-condition
+
+-- Post-condition
+
+-- Frame condition
 
 }
 
 pred deleteMailbox [mb: Mailbox, t,t': Time] {
+-- Pre-condition
+
+-- Post-condition
+
+-- Frame condition
 
 }
 
@@ -150,8 +201,9 @@ pred System {
 }
 
 
-run { System } for 8
-
+--run { System } for 8
+--run { some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] } 
+run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] } 
 
 --------------
 -- Properties
