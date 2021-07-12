@@ -41,7 +41,7 @@ one sig MailApp {
 }
 
 abstract sig Operator {}
-one sig Created, Moved, Deleted, Sent, Received extends Operator {}
+one sig CreatedMessage, Moved, DeletedMessage, Sent, Received, Emptied, CreatedMailbox, DeletedMailbox extends Operator {}
 
 one sig Track {
   op: Operator lone -> Time
@@ -73,7 +73,6 @@ pred createMessage [m: Message, t,t': Time] {
   -- Pre-condition
     -- Since this is a fresh message, in terms of the Alloy model, the message
     -- cannot be drawn from the set of messages that are currently active or purged.
-    t' = t.next
     no (m.status.t & ObjectStatus)
     no (m & Mailbox.messages.t)
   -- Post-condition
@@ -82,7 +81,8 @@ pred createMessage [m: Message, t,t': Time] {
     some (m & mDrafts.messages.t')
   -- Frame condition
 
-    Track.op.t' = Created
+    t' = t.next
+    Track.op.t' = CreatedMessage
 }
 
 pred getMessage [m: Message, t,t': Time] {
@@ -90,7 +90,6 @@ pred getMessage [m: Message, t,t': Time] {
   --simply to add a message coming from outside of the mail app to the inbox. At the time of
   --arrival, the message can be neither active or purged.
   -- Pre-condition
-    t' = t.next
     no (m.status.t & ObjectStatus)
     no (m & Mailbox.messages.t)
   -- Post-condition
@@ -98,13 +97,13 @@ pred getMessage [m: Message, t,t': Time] {
     some (m & mInbox.messages.t')
   -- Frame condition
 
-    Track.op.t' = Receive
+    t' = t.next
+    Track.op.t' = Received
 }
 
 pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
   --Move a given message from its current mailbox to a given, different mailbox.
   -- Pre-condition
-    t' = t.next
     some (m.status.t & InUse)
     some(m & Mailbox.messages.t)
     no (m & mb'.messages.t)
@@ -114,13 +113,13 @@ pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
     no (m & m.(~(messages.t)).messages.t')
   -- Frame condition
 
-  Track.op.t' = Moved
+    t' = t.next
+    Track.op.t' = Moved
 }
 
 pred deleteMessage [m: Message, t,t': Time] {
   --Move a given, non yet deleted, message from its current mailbox to the trash mailbox.
   -- Pre-condition
-    t' = t.next
     some (m.status.t & InUse)
     some(m & (Mailbox - mTrash).messages.t)
     no (m & mTrash.messages.t)
@@ -130,14 +129,14 @@ pred deleteMessage [m: Message, t,t': Time] {
     no (m & m.(~(messages.t)).messages.t')
   -- Frame condition
 
-    Track.op.t' = Deleted
+    t' = t.next
+    Track.op.t' = DeletedMessage
 }
 
 pred sendMessage [m: Message, t,t': Time] {
   --Send a new message. In terms of the Alloy model, the effect of this operation is
   --simply to move a selected message from the draft mailbox to the sent messages mailbox.
   -- Pre-condition
-    t' = t.next
     some (m.status.t & InUse)
     some(m & mDrafts.messages.t)
     no (m & (Mailbox - mDrafts).messages.t)
@@ -147,37 +146,47 @@ pred sendMessage [m: Message, t,t': Time] {
     no (m & (Mailbox - mSent).messages.t')
   -- Frame condition
 
-  Track.op.t' = Sent
+    t' = t.next
+    Track.op.t' = Sent
 }
 
 pred emptyTrash [t,t': Time] {
+  --Permanently purge all messages currently in the trash mailbox.
   -- Pre-condition
-    t' = t.next
-
   -- Post-condition
-
+    no (Message & mTrash.messages.t')
+    all m : Message | (some (m & mTrash.messages.t)) => (some (m.status.t' & Purged))
   -- Frame condition
 
+    t' = t.next
+    Track.op.t' = Emptied
 }
 
 pred createMailbox [mb: Mailbox, t,t': Time] {
+  --Create a new, empty mailbox and add it to the set of user-created mailboxes.
   -- Pre-condition
-    t' = t.next
-
+  no (mb.status.t & ObjectStatus)
+  no (mb & mUserBoxes[t])
+  no (Message & mb.messages.t)
   -- Post-condition
-
+  some (mb & InUse.objects.t')
+  some (mb & mUserBoxes[t'])
+  no (Message & mb.messages.t')
   -- Frame condition
 
+    t' = t.next
+    Track.op.t' = CreatedMailbox
 }
 
 pred deleteMailbox [mb: Mailbox, t,t': Time] {
   -- Pre-condition
-    t' = t.next
 
   -- Post-condition
 
   -- Frame condition
 
+    t' = t.next
+    Track.op.t' = DeletedMailbox
 }
 
 
@@ -243,7 +252,9 @@ all t: Time - T/last | trans [t, T/next[t]]
 --run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] }  
 --run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] } 
 --run { some m: Message | some t: Time | some t2: Time | sendMessage [m, t, t2] && mDrafts != mSent } 
-run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] } 
+--run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] } 
+--run { some t: Time | some t2: Time | some (Message & mTrash.messages.t) and emptyTrash [t, t2] } 
+run { some mb: Mailbox | some t: Time | some t2: Time | createMailbox [mb, t, t2] }  
 
 
 
