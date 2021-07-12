@@ -19,7 +19,7 @@ sig Time {}
 
 abstract sig ObjectStatus {}
 one sig InUse, Purged extends ObjectStatus {
-	objects: Object set -> Time
+  objects: Object set -> Time
 }
 
 abstract sig Object {
@@ -41,7 +41,7 @@ one sig MailApp {
 }
 
 abstract sig Operator {}
-one sig Created, Moved, Deleted, Sent extends Operator {}
+one sig Created, Moved, Deleted, Sent, Received extends Operator {}
 
 one sig Track {
   op: Operator lone -> Time
@@ -70,106 +70,113 @@ fun start [] : Time { T/first } -- first instant
 -------------
 
 pred createMessage [m: Message, t,t': Time] {
--- Pre-condition
-	-- Since this is a fresh message, in terms of the Alloy model, the message
-	-- cannot be drawn from the set of messages that are currently active or purged.
-  t' = t.next
-	no (m.status.t & ObjectStatus)
-	no (m & Mailbox.messages.t)
--- Post-condition
-	-- Create a new message and put it in the drafts mailbox.
-	some (m.status.t' & InUse)
-	some (m & mDrafts.messages.t')
--- Frame condition
+  -- Pre-condition
+    -- Since this is a fresh message, in terms of the Alloy model, the message
+    -- cannot be drawn from the set of messages that are currently active or purged.
+    t' = t.next
+    no (m.status.t & ObjectStatus)
+    no (m & Mailbox.messages.t)
+  -- Post-condition
+    -- Create a new message and put it in the drafts mailbox.
+    some (m.status.t' & InUse)
+    some (m & mDrafts.messages.t')
+  -- Frame condition
 
-  Track.op.t' = Created
+    Track.op.t' = Created
 }
 
 pred getMessage [m: Message, t,t': Time] {
--- Pre-condition
+  --Receive a new message in the inbox. In the model, the effect of this operation is
+  --simply to add a message coming from outside of the mail app to the inbox. At the time of
+  --arrival, the message can be neither active or purged.
+  -- Pre-condition
+    t' = t.next
+    no (m.status.t & ObjectStatus)
+    no (m & Mailbox.messages.t)
+  -- Post-condition
+    some (m.status.t' & InUse)
+    some (m & mInbox.messages.t')
+  -- Frame condition
 
--- Post-condition
-
--- Frame condition
-
+    Track.op.t' = Receive
 }
 
 pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
---Move a given message from its current mailbox to a given, different mailbox.
--- Pre-condition
-  t' = t.next
-	some (m.status.t & InUse)
-	some(m & Mailbox.messages.t)
-	no (m & mb'.messages.t)
--- Post-condition
-	some (m.status.t' & InUse)
-	some (m & mb'.messages.t')
-	no (m & m.(~(messages.t)).messages.t')
--- Frame condition
+  --Move a given message from its current mailbox to a given, different mailbox.
+  -- Pre-condition
+    t' = t.next
+    some (m.status.t & InUse)
+    some(m & Mailbox.messages.t)
+    no (m & mb'.messages.t)
+  -- Post-condition
+    some (m.status.t' & InUse)
+    some (m & mb'.messages.t')
+    no (m & m.(~(messages.t)).messages.t')
+  -- Frame condition
 
   Track.op.t' = Moved
 }
 
 pred deleteMessage [m: Message, t,t': Time] {
---Move a given, non yet deleted, message from its current mailbox to the trash mailbox.
--- Pre-condition
-  t' = t.next
-	some (m.status.t & InUse)
-	some(m & (Mailbox - mTrash).messages.t)
-	no (m & mTrash.messages.t)
--- Post-condition
-	some (m.status.t' & InUse)
-	some (m & mTrash.messages.t')
-	no (m & m.(~(messages.t)).messages.t')
--- Frame condition
+  --Move a given, non yet deleted, message from its current mailbox to the trash mailbox.
+  -- Pre-condition
+    t' = t.next
+    some (m.status.t & InUse)
+    some(m & (Mailbox - mTrash).messages.t)
+    no (m & mTrash.messages.t)
+  -- Post-condition
+    some (m.status.t' & InUse)
+    some (m & mTrash.messages.t')
+    no (m & m.(~(messages.t)).messages.t')
+  -- Frame condition
 
-  Track.op.t' = Deleted
+    Track.op.t' = Deleted
 }
 
 pred sendMessage [m: Message, t,t': Time] {
---Send a new message. In terms of the Alloy model, the effect of this operation is
---simply to move a selected message from the draft mailbox to the sent messages mailbox.
--- Pre-condition
-  t' = t.next
-	some (m.status.t & InUse)
-	some(m & mDrafts.messages.t)
-	no (m & (Mailbox - mDrafts).messages.t)
--- Post-condition
-	some (m.status.t' & InUse)
-	some (m & mSent.messages.t')
-	no (m & (Mailbox - mSent).messages.t')
--- Frame condition
+  --Send a new message. In terms of the Alloy model, the effect of this operation is
+  --simply to move a selected message from the draft mailbox to the sent messages mailbox.
+  -- Pre-condition
+    t' = t.next
+    some (m.status.t & InUse)
+    some(m & mDrafts.messages.t)
+    no (m & (Mailbox - mDrafts).messages.t)
+  -- Post-condition
+    some (m.status.t' & InUse)
+    some (m & mSent.messages.t')
+    no (m & (Mailbox - mSent).messages.t')
+  -- Frame condition
 
   Track.op.t' = Sent
 }
 
 pred emptyTrash [t,t': Time] {
--- Pre-condition
-  t' = t.next
+  -- Pre-condition
+    t' = t.next
 
--- Post-condition
+  -- Post-condition
 
--- Frame condition
+  -- Frame condition
 
 }
 
 pred createMailbox [mb: Mailbox, t,t': Time] {
--- Pre-condition
-  t' = t.next
+  -- Pre-condition
+    t' = t.next
 
--- Post-condition
+  -- Post-condition
 
--- Frame condition
+  -- Frame condition
 
 }
 
 pred deleteMailbox [mb: Mailbox, t,t': Time] {
--- Pre-condition
-  t' = t.next
+  -- Pre-condition
+    t' = t.next
 
--- Post-condition
+  -- Post-condition
 
--- Frame condition
+  -- Frame condition
 
 }
 
@@ -180,18 +187,18 @@ pred deleteMailbox [mb: Mailbox, t,t': Time] {
 
 pred init [t: Time] {
 
-  -- There are no purged objects at all
-	no Purged.objects.t
-  -- All mailboxes are empty
-	no Mailbox.messages.t
-  -- The predefined mailboxes are mutually distinct
-	no inbox & (drafts + trash + sent) and 
-	no drafts & (trash + sent) and
-	no trash & sent
-  -- The predefined mailboxes are the only active objects
+-- There are no purged objects at all
+no Purged.objects.t
+-- All mailboxes are empty
+no Mailbox.messages.t
+-- The predefined mailboxes are mutually distinct
+no inbox & (drafts + trash + sent) and 
+no drafts & (trash + sent) and
+no trash & sent
+-- The predefined mailboxes are the only active objects
 --	Object & InUse.objects.t = (inbox + drafts + trash + sent)
-  -- The app has no user-created mailboxes
-	no MailApp.userboxes.t
+-- The app has no user-created mailboxes
+no MailApp.userboxes.t
 }
 
 
@@ -200,21 +207,21 @@ pred init [t: Time] {
 -----------------------
 
 pred trans [t,t': Time]  {
-  (some mb: Mailbox | createMailbox [mb, t, t'])
-  or
-  (some mb: Mailbox | deleteMailbox [mb, t, t'])
-  or
-  (some m: Message | createMessage [m, t, t'])
-  or
-  (some m: Message | getMessage [m, t, t'])
-  or
-  (some m: Message | sendMessage [m, t, t'])
-  or
-  (some m: Message | deleteMessage [m, t, t'])
-  or
-  (some m: Message | some mb: Mailbox | moveMessage [m, mb, t, t'])
-  or
-  emptyTrash [t, t']
+(some mb: Mailbox | createMailbox [mb, t, t'])
+or
+(some mb: Mailbox | deleteMailbox [mb, t, t'])
+or
+(some m: Message | createMessage [m, t, t'])
+or
+(some m: Message | getMessage [m, t, t'])
+or
+(some m: Message | sendMessage [m, t, t'])
+or
+(some m: Message | deleteMessage [m, t, t'])
+or
+(some m: Message | some mb: Mailbox | moveMessage [m, mb, t, t'])
+or
+emptyTrash [t, t']
 }
 
 
@@ -226,8 +233,8 @@ pred trans [t,t': Time]  {
 -- Denotes all possible executions of the system from a state
 -- that satisfies the init condition
 pred System {
-   init [start]
-  all t: Time - T/last | trans [t, T/next[t]]
+init [start]
+all t: Time - T/last | trans [t, T/next[t]]
 }
 
 
@@ -236,6 +243,8 @@ pred System {
 --run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] }  
 --run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] } 
 --run { some m: Message | some t: Time | some t2: Time | sendMessage [m, t, t2] && mDrafts != mSent } 
+run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] } 
+
 
 
 --------------
