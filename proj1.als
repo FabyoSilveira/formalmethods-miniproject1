@@ -41,7 +41,7 @@ one sig MailApp {
 }
 
 abstract sig Operator {}
-one sig Created, Moved, Deleted extends Operator {}
+one sig Created, Moved, Deleted, Sent extends Operator {}
 
 one sig Track {
   op: Operator lone -> Time
@@ -73,6 +73,7 @@ pred createMessage [m: Message, t,t': Time] {
 -- Pre-condition
 	-- Since this is a fresh message, in terms of the Alloy model, the message
 	-- cannot be drawn from the set of messages that are currently active or purged.
+  t' = t.next
 	no (m.status.t & ObjectStatus)
 	no (m & Mailbox.messages.t)
 -- Post-condition
@@ -96,6 +97,7 @@ pred getMessage [m: Message, t,t': Time] {
 pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
 --Move a given message from its current mailbox to a given, different mailbox.
 -- Pre-condition
+  t' = t.next
 	some (m.status.t & InUse)
 	some(m & Mailbox.messages.t)
 	no (m & mb'.messages.t)
@@ -111,6 +113,7 @@ pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
 pred deleteMessage [m: Message, t,t': Time] {
 --Move a given, non yet deleted, message from its current mailbox to the trash mailbox.
 -- Pre-condition
+  t' = t.next
 	some (m.status.t & InUse)
 	some(m & (Mailbox - mTrash).messages.t)
 	no (m & mTrash.messages.t)
@@ -124,16 +127,25 @@ pred deleteMessage [m: Message, t,t': Time] {
 }
 
 pred sendMessage [m: Message, t,t': Time] {
+--Send a new message. In terms of the Alloy model, the effect of this operation is
+--simply to move a selected message from the draft mailbox to the sent messages mailbox.
 -- Pre-condition
-
+  t' = t.next
+	some (m.status.t & InUse)
+	some(m & mDrafts.messages.t)
+	no (m & (Mailbox - mDrafts).messages.t)
 -- Post-condition
-
+	some (m.status.t' & InUse)
+	some (m & mSent.messages.t')
+	no (m & (Mailbox - mSent).messages.t')
 -- Frame condition
 
+  Track.op.t' = Sent
 }
 
 pred emptyTrash [t,t': Time] {
 -- Pre-condition
+  t' = t.next
 
 -- Post-condition
 
@@ -143,6 +155,7 @@ pred emptyTrash [t,t': Time] {
 
 pred createMailbox [mb: Mailbox, t,t': Time] {
 -- Pre-condition
+  t' = t.next
 
 -- Post-condition
 
@@ -152,6 +165,7 @@ pred createMailbox [mb: Mailbox, t,t': Time] {
 
 pred deleteMailbox [mb: Mailbox, t,t': Time] {
 -- Pre-condition
+  t' = t.next
 
 -- Post-condition
 
@@ -220,7 +234,9 @@ pred System {
 --run { System } for 8
 --run { some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] }
 --run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] }  
-run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] } 
+--run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] } 
+--run { some m: Message | some t: Time | some t2: Time | sendMessage [m, t, t2] && mDrafts != mSent } 
+
 
 --------------
 -- Properties
