@@ -40,6 +40,14 @@ one sig MailApp {
   userboxes: Mailbox set -> Time
 }
 
+abstract sig Operator {}
+one sig Created, Moved, Deleted extends Operator {}
+
+one sig Track {
+  op: Operator lone -> Time
+}
+
+
 -----------------------
 -- Abbreviation macros
 -----------------------
@@ -73,6 +81,7 @@ pred createMessage [m: Message, t,t': Time] {
 	some (m & mDrafts.messages.t')
 -- Frame condition
 
+  Track.op.t' = Created
 }
 
 pred getMessage [m: Message, t,t': Time] {
@@ -96,15 +105,22 @@ pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
 	no (m & m.(~(messages.t)).messages.t')
 -- Frame condition
 
+  Track.op.t' = Moved
 }
 
 pred deleteMessage [m: Message, t,t': Time] {
+--Move a given, non yet deleted, message from its current mailbox to the trash mailbox.
 -- Pre-condition
-
+	some (m.status.t & InUse)
+	some(m & (Mailbox - mTrash).messages.t)
+	no (m & mTrash.messages.t)
 -- Post-condition
-
+	some (m.status.t' & InUse)
+	some (m & mTrash.messages.t')
+	no (m & m.(~(messages.t)).messages.t')
 -- Frame condition
 
+  Track.op.t' = Deleted
 }
 
 pred sendMessage [m: Message, t,t': Time] {
@@ -202,8 +218,9 @@ pred System {
 
 
 --run { System } for 8
---run { some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] } 
-run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] } 
+--run { some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] }
+--run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] }  
+run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] } 
 
 --------------
 -- Properties
