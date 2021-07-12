@@ -253,8 +253,8 @@ pred init [t: Time] {
   -- All mailboxes are empty
   no Mailbox.messages.t
   -- The predefined mailboxes are mutually distinct
-  no inbox & (drafts + trash + sent) and 
-  no drafts & (trash + sent) and
+  no inbox & (drafts + trash + sent) 
+  no drafts & (trash + sent)
   no trash & sent
   -- The predefined mailboxes are the only active objects
   Object & InUse.objects.t = (mInbox + mDrafts + mTrash + mSent)
@@ -300,14 +300,14 @@ all t: Time - T/last | trans [t, T/next[t]]
 
 
 run { System } for 8
---run { some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] }
---run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] } 
---run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] }  
---run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] } 
---run { some m: Message | some t: Time | some t2: Time | sendMessage [m, t, t2] && mDrafts != mSent } 
---run { some t: Time | some t2: Time | some (Message & mTrash.messages.t) and emptyTrash [t, t2] } 
---run { some mb: Mailbox | some t: Time | some t2: Time | createMailbox [mb, t, t2] } 
---run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | deleteMailbox [mb, t, t2] and some (m & mb.messages.t) }
+--run {  some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] and System} for 8
+--run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] and System} for 8
+--run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] and System}  for 8
+--run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] and System} for 8
+--run { some m: Message | some t: Time | some t2: Time | sendMessage [m, t, t2] && mDrafts != mSent and System} for 8
+--run { some t: Time | some t2: Time | some (Message & mTrash.messages.t) and emptyTrash [t, t2] and System} for 8
+--run { some mb: Mailbox | some t: Time | some t2: Time | createMailbox [mb, t, t2] and System} for 8
+--run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | deleteMailbox [mb, t, t2] and some (m & mb.messages.t) and System} for 8
 
 
 --------------
