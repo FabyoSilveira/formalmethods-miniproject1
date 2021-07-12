@@ -165,13 +165,13 @@ pred emptyTrash [t,t': Time] {
 pred createMailbox [mb: Mailbox, t,t': Time] {
   --Create a new, empty mailbox and add it to the set of user-created mailboxes.
   -- Pre-condition
-  no (mb.status.t & ObjectStatus)
-  no (mb & mUserBoxes[t])
-  no (Message & mb.messages.t)
+    no (mb.status.t & ObjectStatus)
+    no (mb & mUserBoxes[t])
+    no (Message & mb.messages.t)
   -- Post-condition
-  some (mb & InUse.objects.t')
-  some (mb & mUserBoxes[t'])
-  no (Message & mb.messages.t')
+    some (mb & InUse.objects.t')
+    some (mb & mUserBoxes[t'])
+    no (Message & mb.messages.t')
   -- Frame condition
 
     t' = t.next
@@ -180,9 +180,12 @@ pred createMailbox [mb: Mailbox, t,t': Time] {
 
 pred deleteMailbox [mb: Mailbox, t,t': Time] {
   -- Pre-condition
-
+    some (mb & InUse.objects.t)
+    some (mb & mUserBoxes[t])
   -- Post-condition
-
+    some (mb & Purged.objects.t')
+    no (mb & mUserBoxes[t'])
+    all m : Message | (some (m & mb.messages.t)) => (some (m.status.t' & Purged))
   -- Frame condition
 
     t' = t.next
@@ -254,8 +257,7 @@ all t: Time - T/last | trans [t, T/next[t]]
 --run { some m: Message | some t: Time | some t2: Time | sendMessage [m, t, t2] && mDrafts != mSent } 
 --run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] } 
 --run { some t: Time | some t2: Time | some (Message & mTrash.messages.t) and emptyTrash [t, t2] } 
-run { some mb: Mailbox | some t: Time | some t2: Time | createMailbox [mb, t, t2] }  
-
+run { some mb: Mailbox | some t: Time | some t2: Time | deleteMailbox [mb, t, t2] }
 
 
 --------------
