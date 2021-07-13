@@ -7,6 +7,7 @@
 --
 -- Names: Diego Della Rocca de Camargos
 --        Fabyo Silveira Amorim
+--        Gleison Souza Diniz Mendonca
 -- 
 --===============================================
 
@@ -299,7 +300,8 @@ all t: Time - T/last | trans [t, T/next[t]]
 }
 
 
-run { System } for 8
+--run { System } for 8
+
 --run {  some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] and System} for 8
 --run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] and System} for 8
 --run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] and System}  for 8
@@ -316,17 +318,17 @@ run { System } for 8
 
 pred p1 {
 -- Active mailboxes contain only active messages
-
+ all mb: Mailbox, t: Time | some (mb & InUse.objects.t) and some (mb.messages.t) => some (mb.messages.t & InUse.objects.t) 
 }
 
 pred p2 {
 -- Every active message belongs to some active mailbox
-
+ all mg: Message, t:Time | let mb = (Mailbox <: InUse.objects.t) | some ((mg->t) &  InUse.objects) => some ((mg->t) & mb.messages)
 }
 
 pred p3 {
 -- Mailboxes do not share messages
-
+  all mb1, mb2: Mailbox | (mb1 != mb2) => no (mb1.messages & mb2.messages)
 }
 
 pred p4 {
@@ -361,3 +363,5 @@ assert a4 { System => p4 }
 assert a5 { System => p5 }
 assert a6 { System => p6 }
 assert a7 { System => p7 }
+
+check a3 for 8
