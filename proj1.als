@@ -318,8 +318,10 @@ all t: Time - T/last | trans [t, T/next[t]]
 
 pred p1 {
 -- Active mailboxes contain only active messages
- all mb: Mailbox, t: Time | some (mb & InUse.objects.t) and some (mb.messages.t) => some (mb.messages.t & InUse.objects.t) 
-}
+ --all mb: Mailbox, t: Time | some (mb & InUse.objects.t) and some (mb.messages.t) => some (mb.messages.t & InUse.objects.t)
+ all mb: Mailbox, t: Time | some (mb & InUse.objects.t) and some (mb.messages.t) => mb.messages.t = (InUse.objects.t & mb.messages.t)
+} 
+
 
 pred p2 {
 -- Every active message belongs to some active mailbox
@@ -364,7 +366,7 @@ assert a5 { System => p5 }
 assert a6 { System => p6 }
 assert a7 { System => p7 }
 
---check a1 for 8
+check a1 for 8
 --check a2 for 8
 --check a3 for 8
 --check a4 for 8
