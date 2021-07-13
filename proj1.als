@@ -333,23 +333,23 @@ pred p3 {
 
 pred p4 {
 -- The system mailboxes are always active
-
+  all t: Time, smb: (mInbox + mDrafts + mTrash + mSent) | some (smb & (InUse.objects.t))
 }
 
 pred p5 {
 -- User-created mailboxes are different from the system mailboxes
-
+  all t: Time | no (mUserBoxes[t] & (mInbox + mDrafts + mTrash + mSent))
 }
 
 pred p6 {
 -- An object can be have Purged status only if it was once active
-
+  all t1: Time | let t2 = t1.next | #Purged.objects.t2  = #(Purged.objects.t2 & (Purged.objects.t1 + InUse.objects.t1))
 }
 
 
 pred p7 {
 -- Every sent message was once a draft message
-
+  all t1: Time | let t2 = t1.next | #sent.messages.t2  = #(sent.messages.t2 & (sent.messages.t1 + drafts.messages.t2)) 
 }
 
 --------------
@@ -364,4 +364,10 @@ assert a5 { System => p5 }
 assert a6 { System => p6 }
 assert a7 { System => p7 }
 
-check a3 for 8
+--check a1 for 8
+--check a2 for 8
+--check a3 for 8
+--check a4 for 8
+--check a5 for 8
+--check a6 for 8
+--check a7 for 8
