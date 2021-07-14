@@ -93,7 +93,7 @@ pred createMessage [m: Message, t,t': Time] {
     
     some (m & mDrafts.messages.t')
   -- Frame condition
-
+    noMailboxChange[mDrafts, t, t']
     t' = t.next
     Track.op.t' = CreatedMessage
 }
@@ -115,7 +115,7 @@ pred getMessage [m: Message, t,t': Time] {
 
     some (m & mInbox.messages.t')
   -- Frame condition
-
+    noMailboxChange[mInbox, t, t']
     t' = t.next
     Track.op.t' = Received
 }
@@ -159,6 +159,7 @@ pred deleteMessage [m: Message, t,t': Time] {
     some (m & mTrash.messages.t')
     no (m & m.(~(messages.t)).messages.t')
   -- Frame condition
+    noMailboxChange[mTrash, t, t']
 
     t' = t.next
     Track.op.t' = DeletedMessage
@@ -182,7 +183,7 @@ pred sendMessage [m: Message, t,t': Time] {
     some (m & mSent.messages.t')
     no (m & (Mailbox - mSent).messages.t')
   -- Frame condition
-
+    noMailboxChange[mSent, t, t']
     t' = t.next
     Track.op.t' = Sent
 }
@@ -198,7 +199,7 @@ pred emptyTrash [t,t': Time] {
                                                          some (m & Purged.objects.t') and
                                                          no (m & InUse.objects.t'))
   -- Frame condition
-
+    noMailboxChange[mTrash, t, t']
     t' = t.next
     Track.op.t' = Emptied
 }
@@ -220,7 +221,7 @@ pred createMailbox [mb: Mailbox, t,t': Time] {
     some (mb & mUserBoxes[t'])
     no (Message & mb.messages.t')
   -- Frame condition
-
+    
     t' = t.next
     Track.op.t' = CreatedMailbox
 }
@@ -244,7 +245,7 @@ pred deleteMailbox [mb: Mailbox, t,t': Time] {
                                                      some (m & Purged.objects.t') and
                                                      no (m & InUse.objects.t'))
   -- Frame condition
-
+    noMailboxChange[mb, t, t']
     t' = t.next
     Track.op.t' = DeletedMailbox
 }
