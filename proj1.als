@@ -64,7 +64,13 @@ fun mUserBoxes [t: Time]: set Mailbox { MailApp.userboxes.t }
 
 fun start [] : Time { T/first } -- first instant
 
+------------------------------
+-- Frame condition predicates
+------------------------------
 
+pred noMailboxChange[mb: Mailbox, t,t': Time, ] {
+    all mailBox: Mailbox - mb | mailBox.messages.t' = mailBox.messages.t
+}
 
 -------------
 -- Operators
@@ -87,7 +93,7 @@ pred createMessage [m: Message, t,t': Time] {
     
     some (m & mDrafts.messages.t')
   -- Frame condition
-
+    noMailboxChange[mDrafts, t, t']
     t' = t.next
     Track.op.t' = CreatedMessage
 }
@@ -109,7 +115,7 @@ pred getMessage [m: Message, t,t': Time] {
 
     some (m & mInbox.messages.t')
   -- Frame condition
-
+    noMailboxChange[mInbox, t, t']
     t' = t.next
     Track.op.t' = Received
 }
@@ -153,6 +159,7 @@ pred deleteMessage [m: Message, t,t': Time] {
     some (m & mTrash.messages.t')
     no (m & m.(~(messages.t)).messages.t')
   -- Frame condition
+    noMailboxChange[mTrash, t, t']
 
     t' = t.next
     Track.op.t' = DeletedMessage
@@ -176,7 +183,7 @@ pred sendMessage [m: Message, t,t': Time] {
     some (m & mSent.messages.t')
     no (m & (Mailbox - mSent).messages.t')
   -- Frame condition
-
+    noMailboxChange[mSent, t, t']
     t' = t.next
     Track.op.t' = Sent
 }
@@ -192,7 +199,7 @@ pred emptyTrash [t,t': Time] {
                                                          some (m & Purged.objects.t') and
                                                          no (m & InUse.objects.t'))
   -- Frame condition
-
+    noMailboxChange[mTrash, t, t']
     t' = t.next
     Track.op.t' = Emptied
 }
@@ -214,7 +221,7 @@ pred createMailbox [mb: Mailbox, t,t': Time] {
     some (mb & mUserBoxes[t'])
     no (Message & mb.messages.t')
   -- Frame condition
-
+    
     t' = t.next
     Track.op.t' = CreatedMailbox
 }
@@ -238,7 +245,7 @@ pred deleteMailbox [mb: Mailbox, t,t': Time] {
                                                      some (m & Purged.objects.t') and
                                                      no (m & InUse.objects.t'))
   -- Frame condition
-
+    noMailboxChange[mb, t, t']
     t' = t.next
     Track.op.t' = DeletedMailbox
 }
@@ -302,7 +309,11 @@ all t: Time - T/last | trans [t, T/next[t]]
 
 --run { System } for 8
 
+<<<<<<< HEAD
 --run {  some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] and System} for 8
+=======
+run {  some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] and System} for 8
+>>>>>>> 4e9217b8c400437af29ed10364d73f672df074ac
 --run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] and System} for 8
 --run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] and System}  for 8
 --run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] and System} for 8
@@ -366,7 +377,11 @@ assert a5 { System => p5 }
 assert a6 { System => p6 }
 assert a7 { System => p7 }
 
+<<<<<<< HEAD
 check a1 for 8
+=======
+--check a1 for 8
+>>>>>>> 4e9217b8c400437af29ed10364d73f672df074ac
 --check a2 for 8
 --check a3 for 8
 --check a4 for 8
