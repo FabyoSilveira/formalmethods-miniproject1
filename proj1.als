@@ -68,8 +68,28 @@ fun start [] : Time { T/first } -- first instant
 -- Frame condition predicates
 ------------------------------
 
-pred noMailboxChange[mb: Mailbox, t,t': Time, ] {
-    all mailBox: Mailbox - mb | mailBox.messages.t' = mailBox.messages.t
+pred noMailboxChange[mb: Mailbox, t,t': Time] {
+    all mailBox: (Mailbox - mb) | mailBox.messages.t' = mailBox.messages.t
+    all mailBox: (Mailbox - mb) | mailBox.messages.t'.status = mailBox.messages.t.status
+
+      -- The default mailboxes still in use
+     some (InUse.objects.t' & mInbox)
+     some (InUse.objects.t' & mDrafts)
+     some (InUse.objects.t' & mTrash)
+     some (InUse.objects.t' & mSent)
+
+     some (mInbox.status.t' & InUse)
+     some (mDrafts.status.t' & InUse)
+     some (mTrash.status.t' & InUse)
+     some (mSent.status.t' & InUse)
+
+     no (mUserBoxes[t'] & (mInbox + mDrafts + mTrash + mSent))
+}
+
+pred noObjectsChangeStatus[ob: Object, t, t': Time] {
+    -- Make all objects live after the transition
+    all obj: (InUse.objects.t - ob) | InUse.objects.t' = obj
+    all obj: (Purged.objects.t - ob) | Purged.objects.t' = obj  
 }
 
 -------------
@@ -92,9 +112,11 @@ pred createMessage [m: Message, t,t': Time] {
     no (m & Purged.objects.t')
     
     some (m & mDrafts.messages.t')
+    #(mDrafts.messages.t') = (#(mDrafts.messages.t) + 1)
   -- Frame condition
     noMailboxChange[mDrafts, t, t']
-    t' = t.next
+    noObjectsChangeStatus[mDrafts, t, t']
+    --t' = t.next
     Track.op.t' = CreatedMessage
 }
 
@@ -112,11 +134,14 @@ pred getMessage [m: Message, t,t': Time] {
     some (m.status.t' & InUse)
     some (m & InUse.objects.t')
     no (m & Purged.objects.t')
+ 
+     #(mInbox.messages.t') = (#(mInbox.messages.t) + 1)
 
     some (m & mInbox.messages.t')
   -- Frame condition
     noMailboxChange[mInbox, t, t']
-    t' = t.next
+    noObjectsChangeStatus[mInbox, t, t']
+    --t' = t.next
     Track.op.t' = Received
 }
 
@@ -135,10 +160,14 @@ pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
     no (m & Purged.objects.t')
 
     some (m & mb'.messages.t')
-    no (m & m.(~(messages.t)).messages.t')
-  -- Frame condition
+    #(mb'.messages.t') = (#(mb'.messages.t) + 1)
 
-    t' = t.next
+    no (m & m.(~(messages.t)).messages.t')
+    #(m.(~(messages.t)).messages.t') = (#(m.(~(messages.t)).messages.t) - 1)
+    -- Frame condition
+    noMailboxChange[mb', t, t']
+    noObjectsChangeStatus[mb', t, t']
+    --t' = t.next
     Track.op.t' = Moved
 }
 
@@ -158,8 +187,10 @@ pred deleteMessage [m: Message, t,t': Time] {
 
     some (m & mTrash.messages.t')
     no (m & m.(~(messages.t)).messages.t')
+     #(m.(~(messages.t)).messages.t') = (#(m.(~(messages.t)).messages.t) - 1)
   -- Frame condition
     noMailboxChange[mTrash, t, t']
+    noObjectsChangeStatus[mTrash, t, t']
 
     t' = t.next
     Track.op.t' = DeletedMessage
@@ -184,7 +215,8 @@ pred sendMessage [m: Message, t,t': Time] {
     no (m & (Mailbox - mSent).messages.t')
   -- Frame condition
     noMailboxChange[mSent, t, t']
-    t' = t.next
+    noObjectsChangeStatus[mSent, t, t']
+    --t' = t.next
     Track.op.t' = Sent
 }
 
@@ -200,29 +232,33 @@ pred emptyTrash [t,t': Time] {
                                                          no (m & InUse.objects.t'))
   -- Frame condition
     noMailboxChange[mTrash, t, t']
-    t' = t.next
+    noObjectsChangeStatus[mTrash, t, t']
+    --t' = t.next
     Track.op.t' = Emptied
 }
 
 pred createMailbox [mb: Mailbox, t,t': Time] {
   --Create a new, empty mailbox and add it to the set of user-created mailboxes.
+  -- Define that the mailbox does not exists
+  no (mb & (mInbox + mDrafts + mTrash + mSent))
   -- Pre-condition
     no (mb.status.t & ObjectStatus)
     no (mb & InUse.objects.t)
     no (mb & Purged.objects.t)
 
     no (mb & mUserBoxes[t])
-    no (Message & mb.messages.t)
+    no mb.messages.t
   -- Post-condition
     some (mb.status.t' & InUse)
     some (mb & InUse.objects.t')
     no (mb & Purged.objects.t')
 
     some (mb & mUserBoxes[t'])
-    no (Message & mb.messages.t')
-  -- Frame condition
-    
-    t' = t.next
+    no mb.messages.t'
+    -- Frame condition
+    all mbox: Mailbox | noMailboxChange[mbox, t, t']
+    noObjectsChangeStatus[mb, t, t']
+    --t' = t.next
     Track.op.t' = CreatedMailbox
 }
 
@@ -245,8 +281,9 @@ pred deleteMailbox [mb: Mailbox, t,t': Time] {
                                                      some (m & Purged.objects.t') and
                                                      no (m & InUse.objects.t'))
   -- Frame condition
-    noMailboxChange[mb, t, t']
-    t' = t.next
+   all mbox: Mailbox | noMailboxChange[mbox, t, t']
+   noObjectsChangeStatus[mb, t, t']
+    --t' = t.next
     Track.op.t' = DeletedMailbox
 }
 
@@ -264,10 +301,18 @@ pred init [t: Time] {
   no inbox & (drafts + trash + sent) 
   no drafts & (trash + sent)
   no trash & sent
+  -- Just the default mailbox are created
+  
   -- The predefined mailboxes are the only active objects
-  Object & InUse.objects.t = (mInbox + mDrafts + mTrash + mSent)
+  InUse.objects.t = (mInbox + mDrafts + mTrash + mSent)
+  some (mInbox.status.t & InUse)
+  some (mDrafts.status.t & InUse)
+  some (mTrash.status.t & InUse)
+  some (mSent.status.t & InUse)
+
   -- The app has no user-created mailboxes
   no MailApp.userboxes.t
+  
 }
 
 
@@ -309,7 +354,7 @@ all t: Time - T/last | trans [t, T/next[t]]
 
 --run { System } for 8
 
-run {  some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] and System} for 8
+--run {  some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] and System} for 8
 --run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] and System} for 8
 --run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] and System}  for 8
 --run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] and System} for 8
