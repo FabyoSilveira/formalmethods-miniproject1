@@ -88,13 +88,8 @@ pred noMailboxChange[mb: Mailbox, t,t': Time] {
 
 pred noObjectsChangeStatus[ob: Object, t, t': Time] {
     -- Make all objects live after the transition
-    all obj: (InUse.objects.t - ob) | some (obj & InUse.objects.t')
-    all obj: (Purged.objects.t - ob) | some (obj & Purged.objects.t')
-   -- Do not create new random objects
-    no ((InUse.objects.t' - ob) -  (InUse.objects.t - ob))
-    no ((InUse.objects.t - ob) -  (InUse.objects.t' - ob))
-    no ((Purged.objects.t' - ob) -  (Purged.objects.t - ob))
-    no ((Purged.objects.t - ob) -  (Purged.objects.t' - ob))
+    all obj: (InUse.objects.t - ob) | InUse.objects.t' = obj
+    all obj: (Purged.objects.t - ob) | Purged.objects.t' = obj  
 }
 
 -------------
@@ -357,7 +352,7 @@ all t: Time - T/last | trans [t, T/next[t]]
 }
 
 
-run { System } for 8
+--run { System } for 8
 
 --run {  some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] and System} for 8
 --run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] and System} for 8
