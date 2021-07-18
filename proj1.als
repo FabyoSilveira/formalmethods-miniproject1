@@ -87,9 +87,14 @@ pred noMailboxChange[mb: Mailbox, t,t': Time] {
 }
 
 pred noObjectsChangeStatus[ob: Object, t, t': Time] {
+    all msg: (Message - ob) | some msg.status.t' => some (msg.status.t' & msg.status.t)
+    all msg: (Message - ob) | some msg.status.t  => some (msg.status.t & msg.status.t')
+
     -- Make all objects live after the transition
-    all obj: (InUse.objects.t - ob) | InUse.objects.t' = obj
-    all obj: (Purged.objects.t - ob) | Purged.objects.t' = obj  
+    all obj: (InUse.objects.t - ob) | some (InUse.objects.t' & obj)
+    all obj: (InUse.objects.t' - ob) | some (InUse.objects.t & obj)
+    all obj: (Purged.objects.t - ob) | some (Purged.objects.t' & obj)
+    all obj: (Purged.objects.t' - ob) | some (Purged.objects.t & obj)
 }
 
 -------------
@@ -111,11 +116,13 @@ pred createMessage [m: Message, t,t': Time] {
     some (m & InUse.objects.t')
     no (m & Purged.objects.t')
     
-    some (m & mDrafts.messages.t')
-    #(mDrafts.messages.t') = (#(mDrafts.messages.t) + 1)
-  -- Frame condition
+    some (m & (mDrafts.messages.t'))
+    no (mDrafts.messages.t' - (mDrafts.messages.t + m))
+    all msg: mDrafts.messages.t | some (msg & mDrafts.messages.t')
+    --#(mDrafts.messages.t') = (#(mDrafts.messages.t) + 1)
+    -- Frame condition
     noMailboxChange[mDrafts, t, t']
-    noObjectsChangeStatus[mDrafts, t, t']
+    noObjectsChangeStatus[m, t, t']
     --t' = t.next
     Track.op.t' = CreatedMessage
 }
@@ -134,13 +141,13 @@ pred getMessage [m: Message, t,t': Time] {
     some (m.status.t' & InUse)
     some (m & InUse.objects.t')
     no (m & Purged.objects.t')
- 
-     #(mInbox.messages.t') = (#(mInbox.messages.t) + 1)
 
     some (m & mInbox.messages.t')
+    all msg: (mInbox.messages.t' - m) | some (msg & mInbox.messages.t)
+    all msg: (mInbox.messages.t) | some (msg & mInbox.messages.t')
   -- Frame condition
     noMailboxChange[mInbox, t, t']
-    noObjectsChangeStatus[mInbox, t, t']
+    noObjectsChangeStatus[m, t, t']
     --t' = t.next
     Track.op.t' = Received
 }
@@ -148,6 +155,7 @@ pred getMessage [m: Message, t,t': Time] {
 pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
   --Move a given message from its current mailbox to a given, different mailbox.
   -- Pre-condition
+    no (mb' & mSent)
     some (m.status.t & InUse)
     some (m & InUse.objects.t)
     no (m & Purged.objects.t)
@@ -160,13 +168,17 @@ pred moveMessage [m: Message, mb': Mailbox, t,t': Time] {
     no (m & Purged.objects.t')
 
     some (m & mb'.messages.t')
-    #(mb'.messages.t') = (#(mb'.messages.t) + 1)
+    no (m & (Mailbox - mb').messages.t')
+    all msg: m.(~(messages.t)).messages.t' | some (msg & m.(~(messages.t)).messages.t)
+    all msg: (m.(~(messages.t)).messages.t - m) | some (msg & m.(~(messages.t)).messages.t')
 
-    no (m & m.(~(messages.t)).messages.t')
-    #(m.(~(messages.t)).messages.t') = (#(m.(~(messages.t)).messages.t) - 1)
+    all msg: (mb'.messages.t' - m) | some (msg & mb'.messages.t)
+    all msg: (mb'.messages.t) | some (msg & mb'.messages.t')
+    --no (m & m.(~(messages.t)).messages.t')
+
     -- Frame condition
-    noMailboxChange[mb', t, t']
-    noObjectsChangeStatus[mb', t, t']
+    noMailboxChange[(mb' + m.(~(messages.t))), t, t']
+    noObjectsChangeStatus[m, t, t']
     --t' = t.next
     Track.op.t' = Moved
 }
@@ -186,11 +198,17 @@ pred deleteMessage [m: Message, t,t': Time] {
     no (m & Purged.objects.t')
 
     some (m & mTrash.messages.t')
-    no (m & m.(~(messages.t)).messages.t')
-     #(m.(~(messages.t)).messages.t') = (#(m.(~(messages.t)).messages.t) - 1)
-  -- Frame condition
-    noMailboxChange[mTrash, t, t']
-    noObjectsChangeStatus[mTrash, t, t']
+    no (m & (Mailbox - mTrash).messages.t')
+    all msg: m.(~(messages.t)).messages.t' | some (msg & m.(~(messages.t)).messages.t)
+    all msg: (mTrash.messages.t' - m) | some (msg & mTrash.messages.t)
+
+    all msg: (m.(~(messages.t)).messages.t - m) | some (msg & m.(~(messages.t)).messages.t')
+    all msg: mTrash.messages.t | some (msg & mTrash.messages.t')
+    --no (m & m.(~(messages.t)).messages.t')
+
+    -- Frame condition
+    noMailboxChange[(mTrash + m.(~(messages.t))), t, t']
+    noObjectsChangeStatus[m, t, t']
 
     t' = t.next
     Track.op.t' = DeletedMessage
@@ -213,9 +231,15 @@ pred sendMessage [m: Message, t,t': Time] {
 
     some (m & mSent.messages.t')
     no (m & (Mailbox - mSent).messages.t')
+    all msg: (mSent.messages.t' - m) | some (msg & mSent.messages.t)
+    all msg: (mSent.messages.t) | some (msg & (mSent.messages.t'))
+
+    all msg: (mDrafts.messages.t - m) | some (msg & mDrafts.messages.t') 
+    no (m & mDrafts.messages.t')
+    all msg: mDrafts.messages.t' | some (msg & mDrafts.messages.t)
   -- Frame condition
-    noMailboxChange[mSent, t, t']
-    noObjectsChangeStatus[mSent, t, t']
+    noMailboxChange[(mSent + mDrafts), t, t']
+    noObjectsChangeStatus[m, t, t']
     --t' = t.next
     Track.op.t' = Sent
 }
@@ -230,9 +254,19 @@ pred emptyTrash [t,t': Time] {
                                                          some (m & InUse.objects.t) and
                                                          some (m & Purged.objects.t') and
                                                          no (m & InUse.objects.t'))
-  -- Frame condition
+
+   -- Frame condition
     noMailboxChange[mTrash, t, t']
-    noObjectsChangeStatus[mTrash, t, t']
+    --noObjectsChangeStatus[mTrash, t, t']
+    all obj: (InUse.objects.t - (Message & mTrash.messages.t)) | some (obj & InUse.objects.t')
+    #(InUse.objects.t - (Message & mTrash.messages.t)) = #(InUse.objects.t')
+
+    all obj: (Purged.objects.t' - mTrash.messages.t) | some (obj & Purged.objects.t)
+
+    all obj: (Message & mTrash.messages.t) | no (obj & InUse.objects.t')
+
+    all msg: (Message -  mTrash.messages.t) | some msg.status.t' => some (msg.status.t' & msg.status.t)
+    all msg: (Message -  mTrash.messages.t) | some msg.status.t  => some (msg.status.t & msg.status.t')
     --t' = t.next
     Track.op.t' = Emptied
 }
@@ -281,8 +315,8 @@ pred deleteMailbox [mb: Mailbox, t,t': Time] {
                                                      some (m & Purged.objects.t') and
                                                      no (m & InUse.objects.t'))
   -- Frame condition
-   all mbox: Mailbox | noMailboxChange[mbox, t, t']
-   noObjectsChangeStatus[mb, t, t']
+   all mBox: (Mailbox - mb) | noMailboxChange[mBox, t, t']
+   noObjectsChangeStatus[(mb + mb.messages.t), t, t']
     --t' = t.next
     Track.op.t' = DeletedMailbox
 }
@@ -352,13 +386,13 @@ all t: Time - T/last | trans [t, T/next[t]]
 }
 
 
---run { System } for 8
+run { System } for 8
 
 --run {  some m: Message | some t: Time | some t2: Time | createMessage[m, t, t2] and System} for 8
 --run { some m: Message | some t: Time | some t2: Time | getMessage [m, t, t2] and System} for 8
 --run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | moveMessage [m, mb, t, t2] and System}  for 8
 --run { some m: Message | some t: Time | some t2: Time | deleteMessage [m, t, t2] and System} for 8
---run { some m: Message | some t: Time | some t2: Time | sendMessage [m, t, t2] && mDrafts != mSent and System} for 8
+--run { some m: Message | some t: Time | some t2: Time | (sendMessage [m, t, t2] && (mDrafts != mSent)) and System} for 8
 --run { some t: Time | some t2: Time | some (Message & mTrash.messages.t) and emptyTrash [t, t2] and System} for 8
 --run { some mb: Mailbox | some t: Time | some t2: Time | createMailbox [mb, t, t2] and System} for 8
 --run { some m: Message | some mb: Mailbox | some t: Time | some t2: Time | deleteMailbox [mb, t, t2] and some (m & mb.messages.t) and System} for 8
@@ -377,7 +411,7 @@ pred p1 {
 
 pred p2 {
 -- Every active message belongs to some active mailbox
- all mg: Message, t:Time | let mb = (Mailbox <: InUse.objects.t) | some ((mg->t) &  InUse.objects) => some ((mg->t) & mb.messages)
+ all t: Time, mg: Message | some (mg & InUse.objects.t) => some (messages.t.mg)
 }
 
 pred p3 {
@@ -403,7 +437,7 @@ pred p6 {
 
 pred p7 {
 -- Every sent message was once a draft message
-  all t1: Time | let t2 = t1.next | #sent.messages.t2  = #(sent.messages.t2 & (sent.messages.t1 + drafts.messages.t2)) 
+  all t1: Time | let t2 = t1.next | some (mSent.messages.t2) => some (mDrafts.messages.t1 + mSent.messages.t1)
 }
 
 --------------
