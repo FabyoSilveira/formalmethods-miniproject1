@@ -311,11 +311,14 @@ pred deleteMailbox [mb: Mailbox, t,t': Time] {
     no (mb & InUse.objects.t')
 
     no (mb & mUserBoxes[t'])
-    all m : Message | (some (m & mb.messages.t)) => (some (m.status.t & InUse) and some (m.status.t' & Purged))
-    all m : Message | (some (m & mb.messages.t)) => (no (m & Purged.objects.t) and
+    all m : Message | (some (m & mb.messages.t)) => (some (m.status.t & InUse) and
+                                                     some (m.status.t' & Purged) and
+                                                     no (m & Purged.objects.t) and
                                                      some (m & InUse.objects.t) and
                                                      some (m & Purged.objects.t') and
-                                                     no (m & InUse.objects.t'))
+                                                     no (m & InUse.objects.t') and
+                                                     no (m & Mailbox.messages.t'))
+    no (mb.messages.t')
   -- Frame condition
    noMailboxChange[mb, t, t']
    noObjectsChangeStatus[(mb + mb.messages.t), t, t']
