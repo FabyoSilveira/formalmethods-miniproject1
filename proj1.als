@@ -84,6 +84,8 @@ pred noMailboxChange[mb: Mailbox, t,t': Time] {
      some (mSent.status.t' & InUse)
 
      no (mUserBoxes[t'] & (mInbox + mDrafts + mTrash + mSent))
+     
+     mUserBoxes[t] - mb = mUserBoxes[t'] - mb
 }
 
 pred noObjectsChangeStatus[ob: Object, t, t': Time] {
@@ -290,7 +292,7 @@ pred createMailbox [mb: Mailbox, t,t': Time] {
     some (mb & mUserBoxes[t'])
     no mb.messages.t'
     -- Frame condition
-    all mbox: Mailbox | noMailboxChange[mbox, t, t']
+    noMailboxChange[mb, t, t']
     noObjectsChangeStatus[mb, t, t']
     --t' = t.next
     Track.op.t' = CreatedMailbox
@@ -315,7 +317,7 @@ pred deleteMailbox [mb: Mailbox, t,t': Time] {
                                                      some (m & Purged.objects.t') and
                                                      no (m & InUse.objects.t'))
   -- Frame condition
-   all mBox: (Mailbox - mb) | noMailboxChange[mBox, t, t']
+   noMailboxChange[mb, t, t']
    noObjectsChangeStatus[(mb + mb.messages.t), t, t']
     --t' = t.next
     Track.op.t' = DeletedMailbox
