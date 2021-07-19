@@ -121,6 +121,9 @@ pred createMessage [m: Message, t,t': Time] {
     some (m & (mDrafts.messages.t'))
     no (mDrafts.messages.t' - (mDrafts.messages.t + m))
     all msg: mDrafts.messages.t | some (msg & mDrafts.messages.t')
+
+    some (m.(~(messages.t')) & InUse.objects.t')
+    some (m.(~(messages.t')) & (mUserBoxes[t'] + mInbox + mDrafts + mTrash + mSent))
     --#(mDrafts.messages.t') = (#(mDrafts.messages.t) + 1)
     -- Frame condition
     noMailboxChange[mDrafts, t, t']
